@@ -95,10 +95,15 @@
 const questionElement = document.getElementById("question");
 const answerButtons = document.getElementById("answer-buttons");
 const nextButton = document.getElementById("next-btn");
+const previousButton = document.getElementById("previous-btn");
+previousButton.addEventListener("click", handlePreviousButton);
+
 
 
 let currentQuestionIndex = 0; 
 let score = 0; 
+let userAnswers = [];
+
 
 function startQuiz(){
     currentQuestionIndex = 0; 
@@ -107,20 +112,59 @@ function startQuiz(){
     showQuestion(); 
 }
 
-    function showQuestion() {
+function handlePreviousButton() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
+        showQuestion();
+    }
+}
+
+function showQuestion() {
         resetState();
+
     let currentQuestion = questions[currentQuestionIndex];
      let questionNo = currentQuestionIndex + 1;
     questionElement.innerHTML = questionNo + ". " + currentQuestion.question;
+
+    previousButton.style.display = currentQuestionIndex === 0 ? "none" : "inline-block";
+
+    const savedAnswer = userAnswers[currentQuestionIndex];
     
     currentQuestion.answers.forEach(answer => {
         const button = document.createElement("button");
         button.innerHTML = answer.text;
         button.classList.add("btn");
+
+        if (answer.correct) {
+            button.dataset.correct = answer.correct;
+        }
+
+        button.addEventListener("click", selectAnswer);
+
+        if (savedAnswer && savedAnswer.selectedText === answer.text) {
+            if (savedAnswer.correct) {
+                button.classList.add("correct");
+            } else {
+                button.classList.add("incorrect");
+            }
+
+            currentQuestion.answers.forEach((ans, idx) => {
+                if (ans.correct && ans.text !== answer.text) {
+                    answerButtons.children[idx]?.classList.add("correct");
+                }
+            });
+
+            setTimeout(() => {
+                Array.from(answerButtons.children).forEach(btn => btn.disabled = true);
+            }, 0);
+        }
+
+
         answerButtons.appendChild(button);
         if(answer.correct){
             button.dataset.correct = answer.correct;
         }
+
         button.addEventListener("click", selectAnswer);
        });
     }
@@ -128,8 +172,8 @@ function startQuiz(){
 
 
 function resetState(){
-    nextButton.style.display = "none";
-    while(answerButtons.firstChild){
+    nextButton.style.display = "inline-block"; 
+   while(answerButtons.firstChild){
         answerButtons.removeChild(answerButtons.firstChild)
     }
      
@@ -137,7 +181,11 @@ function resetState(){
         function selectAnswer(e) {
             const selectedBtn = e.target;
             const isCorrect = selectedBtn.dataset.correct === "true";
-            if(isCorrect){
+            userAnswers[currentQuestionIndex] = {
+                selectedText: selectedBtn.innerHTML,
+                correct: isCorrect
+            };
+             if(isCorrect){
                 selectedBtn.classList.add("correct");
                 score++;
             }else{
@@ -149,12 +197,44 @@ function resetState(){
             }
             button.disabled = true;
          });
-         nextButton.style.display = "block";
+         
 }
 
 function showScore() {
     resetState();
+    const totalScore = userAnswers.reduce((acc, ans) => ans?.correct ? acc + 1 : acc, 0);
     questionElement.innerHTML = `You scored ${score} out of ${questions.length}!`;
+
+    const resultContainer = document.createElement('div');
+    resultContainer.classList.add('result-container');
+
+    const correctAnswersList = document.createElement('ul');
+    correctAnswersList.innerHTML = `<h3>Correct Answers:</h3>`;
+    userAnswers.forEach((answer, index) => {
+        if (answer?.correct) {
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `Q${index + 1}: ${questions[index].question} - Your answer: "${answer.selectedText}"`;
+            correctAnswersList.appendChild(listItem);
+        }
+    });
+
+    const incorrectAnswersList = document.createElement('ul');
+    incorrectAnswersList.innerHTML = `<h3>Incorrect Answers:</h3>`;
+    userAnswers.forEach((answer, index) => {
+        if (!answer?.correct) {
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `Q${index + 1}: ${questions[index].question} - Your answer: "${answer.selectedText}"`;
+            incorrectAnswersList.appendChild(listItem);
+        }
+    });
+
+    resultContainer.appendChild(correctAnswersList);
+    resultContainer.appendChild(incorrectAnswersList);
+
+    document.body.appendChild(resultContainer);
+
+
+
     nextButton.innerHTML = "Play Again";
     nextButton.style.display = "block";
 }
